@@ -103,13 +103,12 @@ class SpeedTestAppState extends State<SpeedTestApp> {
     });
     for (var subnet in networks) {
       for (var ip in calculateIPRange(subnet)) {
-
       final stream = NetworkAnalyzer.i.discover2(ip, 80);
-      print("subnet :"+ip);
-      print("stream :"+stream.toString());
+      print("subnet :$ip");
+      print("stream :$stream");
       // Use the singleton instance of NetworkAnalyzer to discover active hosts
         await for (final host in stream) {
-        print("host :"+host.ip);
+        print("host :${host.ip}");
         if (host.exists) {
           setState(() {
             activeHosts.add(host.ip);
@@ -130,7 +129,7 @@ class SpeedTestAppState extends State<SpeedTestApp> {
     final ping = Ping(ip, count: 3);
     String pingTime = "N/A";
     ping.stream.listen((PingData event) {
-      print(ip+": "+event.toString());
+      print("$ip: $event");
       if (event.response != null) {
         pingTime = event.response!.time!.inMilliseconds.toString();
         setState(() {
