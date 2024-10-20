@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:dart_ping/dart_ping.dart';
 import 'package:ping_discover_network_plus/ping_discover_network_plus.dart';
 
-
 void main() {
   runApp(const SpeedTestApp());
 }
@@ -14,11 +13,11 @@ class SpeedTestApp extends StatefulWidget {
   @override
   SpeedTestAppState createState() => SpeedTestAppState();
 }
+
 class SpeedTestAppState extends State<SpeedTestApp> {
   List<String> activeHosts = [];
   Map<String, String> pingResults = {};
   bool isScanning = false;
-  // Define network ranges
   final List<String> networks = [
     "173.245.48.0/20",
     // "103.21.244.0/22",
@@ -36,19 +35,18 @@ class SpeedTestAppState extends State<SpeedTestApp> {
     // "172.64.0.0/13",
     // "131.0.72.0/22"
   ];
+
   Iterable<String> calculateIPRange(String subnet) sync* {
     RegExp regExp = RegExp(r'(\d+)\.(\d+)\.(\d+)\.(\d+)/(\d+)');
     Match? match = regExp.firstMatch(subnet);
 
     if (match != null) {
-      // 提取基本IP地址和子网掩码
       int base1 = int.parse(match.group(1)!);
       int base2 = int.parse(match.group(2)!);
       int base3 = int.parse(match.group(3)!);
       int base4 = int.parse(match.group(4)!);
       int subnetBits = int.parse(match.group(5)!);
 
-      // 计算子网的起始IP和结束IP
       int ipStart = (base1 << 24) + (base2 << 16) + (base3 << 8) + base4;
       int numIPs = 1 << (32 - subnetBits);
       int ipEnd = ipStart + numIPs;
@@ -62,6 +60,7 @@ class SpeedTestAppState extends State<SpeedTestApp> {
       }
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -95,47 +94,59 @@ class SpeedTestAppState extends State<SpeedTestApp> {
       ),
     );
   }
+
   Future<void> scanNetworks() async {
     setState(() {
       isScanning = true;
       activeHosts.clear();
       pingResults.clear();
     });
-    for (var subnet in networks) {
-      for (var ip in calculateIPRange(subnet)) {
-      final stream = NetworkAnalyzer.i.discover2(ip, 80);
-      print("subnet :$ip");
-      print("stream :$stream");
-      // Use the singleton instance of NetworkAnalyzer to discover active hosts
-        await for (final host in stream) {
-        print("host :${host.ip}");
-        if (host.exists) {
-          setState(() {
-            activeHosts.add(host.ip);
-          });
-          // Ping the discovered host
-          pingHost(host.ip);
-        }
-      }
-    }
-    }
 
+    for (var subnet in networks) {
+      await scanSubnet(subnet);
+    }
 
     setState(() {
       isScanning = false;
     });
   }
+
+  Future<void> scanSubnet(String subnet) async {
+    final ipAddresses = calculateIPRange(subnet);
+    final futures = <Future>[];
+
+    for (var ip in ipAddresses) {
+      futures.add(scanAndPing(ip));
+    }
+
+    await Future.wait(futures);
+  }
+
+  Future<void> scanAndPing(String ip) async {
+    try {
+      final stream = NetworkAnalyzer.i.discover2(ip, 80, timeout: Duration(seconds: 2));
+      await for (final host in stream) {
+        if (host.exists) {
+          setState(() {
+            activeHosts.add(host.ip);
+          });
+          await pingHost(host.ip);
+        }
+      }
+    } catch (e) {
+      print('Error scanning $ip: $e');
+    }
+  }
   Future<void> pingHost(String ip) async {
     final ping = Ping(ip, count: 3);
     String pingTime = "N/A";
-    ping.stream.listen((PingData event) {
-      print("$ip: $event");
+    await for (final event in ping.stream) {
       if (event.response != null) {
         pingTime = event.response!.time!.inMilliseconds.toString();
         setState(() {
           pingResults[ip] = pingTime;
         });
       }
-    });
+    }
   }
 }
