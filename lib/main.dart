@@ -130,9 +130,9 @@ class SpeedTestAppState extends State<SpeedTestApp> {
     for (var ip in ipAddresses) {
        print("Processing IP: $ip");
 
-      // 追执行 scanAndPing 任务，跟踪其状态
-       futures.add(scanAndPing(ip) as FutureWithStatus);
-      // 当并发任务数达到 maxConcurrent 时，等待其中一个任务完成
+       var futureWithStatus = FutureWithStatus(scanAndPing(ip));
+       futures.add(futureWithStatus);
+       // 当并发任务数达到 maxConcurrent 时，等待其中一个任务完成
       if (futures.length >= maxConcurrent) {
         await Future.any(futures.map((f) => f.future)); // 等待其中一个任务完成
         futures.removeWhere((f) => f.isCompleted); // 移除已完成的任务
@@ -148,17 +148,12 @@ class SpeedTestAppState extends State<SpeedTestApp> {
 
   Future<void> scanAndPing(String ip) async {
     try {
-      final stream = NetworkAnalyzer.i.discover2(ip, 80, timeout: const Duration(seconds: 2));
-      await for (final host in stream) {
-        if (host.exists) {
-          print("host.ip: ${host.ip}  host.exists: ${host.exists}");
+          print("host.ip: ${ip}"  );
 
           setState(() {
-            activeHosts.add(host.ip);
+            activeHosts.add(ip);
           });
-          await pingHost(host.ip);
-        }
-      }
+          await pingHost(ip);
     } catch (e) {
       print('Error scanning $ip: $e');
     }
