@@ -113,7 +113,7 @@ class SpeedTestAppState extends State<SpeedTestApp> {
   }
   Future<void> scanSubnet(String subnet) async {
     final ipAddresses = calculateIPRange(subnet);
-    final futures = <Future>[]; // 用来跟踪所有 scanAndPing 的 Future
+    final futures = <Future>[]; // 用于存储所有 scanAndPing 的 Future
 
     for (var ip in ipAddresses) {
       print("Processing IP: $ip");
@@ -122,21 +122,15 @@ class SpeedTestAppState extends State<SpeedTestApp> {
       futures.add(scanAndPing(ip));  // 将 scanAndPing 添加到任务队列中
 
       // 如果任务队列过长，进行并发控制
-      if (futures.length >= 20) {  // 假设最多允许 50 个任务并发
+      if (futures.length >= 50) {  // 假设最多允许 50 个任务并发
         await Future.any(futures); // 等待至少一个任务完成
-        futures.removeWhere((future) => future.isCompleted); // 移除已完成的任务
+        futures.removeWhere((future) => future == Future.any(futures)); // 移除已完成的任务
       }
     }
 
     // 等待剩余的 IP 任务完成
     await Future.wait(futures);
   }
-
-
-
-
-
-
   Future<void> scanAndPing(String ip) async {
     try {
       final stream = NetworkAnalyzer.i.discover2(ip, 80, timeout: const Duration(seconds: 2));
