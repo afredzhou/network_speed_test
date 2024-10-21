@@ -1,13 +1,34 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:dart_ping/dart_ping.dart';
-import 'package:flutter_internet_speed_test/flutter_internet_speed_test.dart';
+import 'package:http/http.dart' as http;
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
 
 void main() {
   runApp(const SpeedTestApp());
 }
 
-class SpeedTestApp extends StatefulWidget {
+Future<double> testSpeed(String ip, {int port = 80, int packetSize = 1024, int packetCount = 10}) async {
+  final startTime = DateTime.now();
+  final socket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+  int totalSent = 0;
+
+  for (int i = 0; i < packetCount; i++) {
+    final packet = Uint8List(packetSize); // 创建一个指定大小的数据包
+    socket.send(packet, InternetAddress(ip), port);
+    totalSent += packet.length;
+  }
+
+  final endTime = DateTime.now();
+  final totalTime = endTime.difference(startTime).inMilliseconds / 1000; // 将时间转换为秒
+  final speed = totalSent / totalTime; // 计算网速（字节/秒）
+  final speedMB = speed / (1024 * 1024); // 转换为 MB/s
+
+  socket.close();
+  return speedMB;
+}class SpeedTestApp extends StatefulWidget {
   const SpeedTestApp({super.key});
 
   @override
@@ -25,7 +46,6 @@ class FutureWithStatus {
 }
 
 class SpeedTestAppState extends State<SpeedTestApp> {
-  final internetSpeedTest = FlutterInternetSpeedTest()..enableLog();
   List<String> activeHosts = [];
   Map<String, String> pingResults = {};
   bool isScanning = false;
@@ -130,18 +150,15 @@ class SpeedTestAppState extends State<SpeedTestApp> {
 
     for (var ip in ipAddresses) {
        print("Processing IP: $ip");
-
        var futureWithStatus = FutureWithStatus(scanAndPing(ip));
        futures.add(futureWithStatus);
        // 当并发任务数达到 maxConcurrent 时，等待其中一个任务完成
        await Future.delayed(Duration(milliseconds: 1000));
-
        if (futures.length >= maxConcurrent) {
         await Future.any(futures.map((f) => f.future)); // 等待其中一个任务完成
         futures.removeWhere((f) => f.isCompleted); // 移除已完成的任务
       }
     }
-
     // 等待剩余的 IP 地址任务完成
     await Future.wait(futures.map((f) => f.future));
   }
@@ -149,7 +166,6 @@ class SpeedTestAppState extends State<SpeedTestApp> {
   Future<void> scanAndPing(String ip) async {
     try {
           print("host.ip: ${ip}"  );
-
           setState(() {
             activeHosts.add(ip);
           });
@@ -169,26 +185,21 @@ class SpeedTestAppState extends State<SpeedTestApp> {
       if (event.response != null && event.response!.time != null) {
         // 获取 Ping 的时间
         pingTime = event.response!.time!.inMilliseconds.toString();
-        print("test ip speed: ${ip}"  );
+        print("start to test ip speed: ${ip}"  );
+        final speed = await testSpeed(ip);
 
-        await internetSpeedTest.startTesting(
-          useFastApi: false,  // 使用默认的 Fast API
-          downloadTestServer: 'http://$ip/10MB.zip',  // 你的下载服务器URL
-          uploadTestServer: 'http://$ip/10MB.zip',  // 你的上传服务器URL
-          onCompleted: (TestResult download, TestResult upload) {
-            downloadSpeed = download.transferRate;  // 获取下载速度
-            uploadSpeed = upload.transferRate;  // 获取上传速度
-          },
-          onError: (String errorMessage, String speedTestError) {
-            print("Error during speed test: $errorMessage");
-          },
-        );
+        // 测试下载速度
+        try {
+          downloadSpeed = await testSpeed(ip);
+        } catch (e) {
+          print('Error: $e');
+        }
       } else {
         print("Ping response is null for IP: $ip");
       }
     }
     // 更新下载速度和上传速度到 UI
     setState(() {
-      pingResults[ip] = "Ping: $pingTime ms, Download: ${downloadSpeed.toStringAsFixed(2)} Mbps, Upload: ${uploadSpeed.toStringAsFixed(2)} Mbps";
+      pingResults[ip] = "Ping: $pingTime ms, Download: ${downloadSpeed.toStringAsFixed(2)} MB/s";
     });
   }}
