@@ -134,7 +134,7 @@ class SpeedTestAppState extends State<SpeedTestApp> {
        var futureWithStatus = FutureWithStatus(scanAndPing(ip));
        futures.add(futureWithStatus);
        // 当并发任务数达到 maxConcurrent 时，等待其中一个任务完成
-       await Future.delayed(Duration(milliseconds: 100));
+       await Future.delayed(Duration(milliseconds: 1000));
 
        if (futures.length >= maxConcurrent) {
         await Future.any(futures.map((f) => f.future)); // 等待其中一个任务完成
@@ -167,9 +167,9 @@ class SpeedTestAppState extends State<SpeedTestApp> {
     // 执行 Ping 操作
     await for (final event in ping.stream) {
       if (event.response != null && event.response!.time != null) {
-
         // 获取 Ping 的时间
         pingTime = event.response!.time!.inMilliseconds.toString();
+        print("test ip speed: ${ip}"  );
 
         await internetSpeedTest.startTesting(
           useFastApi: false,  // 使用默认的 Fast API
@@ -183,23 +183,12 @@ class SpeedTestAppState extends State<SpeedTestApp> {
             print("Error during speed test: $errorMessage");
           },
         );
-        // 实时更新 Ping 结果
-        setState(() {
-          pingResults[ip] = "Ping: $pingTime ms";
-        });
       } else {
         print("Ping response is null for IP: $ip");
       }
     }
-
     // 更新下载速度和上传速度到 UI
     setState(() {
       pingResults[ip] = "Ping: $pingTime ms, Download: ${downloadSpeed.toStringAsFixed(2)} Mbps, Upload: ${uploadSpeed.toStringAsFixed(2)} Mbps";
     });
-  }
-
-
-
-
-
-}
+  }}
