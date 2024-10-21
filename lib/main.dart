@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:dart_ping/dart_ping.dart';
-import 'package:ping_discover_network_plus/ping_discover_network_plus.dart';
+import 'package:flutter_internet_speed_test/flutter_internet_speed_test.dart';
 
 void main() {
   runApp(const SpeedTestApp());
@@ -25,6 +25,7 @@ class FutureWithStatus {
 }
 
 class SpeedTestAppState extends State<SpeedTestApp> {
+  final internetSpeedTest = FlutterInternetSpeedTest()..enableLog();
   List<String> activeHosts = [];
   Map<String, String> pingResults = {};
   bool isScanning = false;
@@ -159,15 +160,46 @@ class SpeedTestAppState extends State<SpeedTestApp> {
     }
   }
   Future<void> pingHost(String ip) async {
-    final ping = Ping(ip, count: 3);
+    final ping = Ping(ip, count: 3);  // Ping 三次
     String pingTime = "N/A";
+
+    // 执行 Ping 操作
     await for (final event in ping.stream) {
       if (event.response != null) {
+        // 获取 Ping 的时间
         pingTime = event.response!.time!.inMilliseconds.toString();
+
+        // 实时更新 Ping 结果
         setState(() {
-          pingResults[ip] = pingTime;
+          pingResults[ip] = "Ping: $pingTime ms";
         });
       }
     }
+
+    // 在 Ping 操作结束后进行下载速度测试
+    double downloadSpeed = 0.0;
+    double uploadSpeed = 0.0;
+
+    await internetSpeedTest.startTesting(
+      useFastApi: true,  // 使用默认的 Fast API
+      downloadTestServer: 'http://$ip/testfile',  // 你的下载服务器URL
+      uploadTestServer: 'http://$ip/uploadfile',  // 你的上传服务器URL
+      onCompleted: (TestResult download, TestResult upload) {
+        downloadSpeed = download.transferRate;  // 获取下载速度
+        uploadSpeed = upload.transferRate;  // 获取上传速度
+      },
+      onError: (String errorMessage, String speedTestError) {
+        print("Error during speed test: $errorMessage");
+      },
+    );
+
+    // 更新下载速度和上传速度到 UI
+    setState(() {
+      pingResults[ip] = "Ping: $pingTime ms, Download: ${downloadSpeed.toStringAsFixed(2)} Mbps, Upload: ${uploadSpeed.toStringAsFixed(2)} Mbps";
+    });
   }
+
+
+
+
 }
