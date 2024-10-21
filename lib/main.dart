@@ -162,13 +162,28 @@ class SpeedTestAppState extends State<SpeedTestApp> {
   Future<void> pingHost(String ip) async {
     final ping = Ping(ip, count: 3);  // Ping 三次
     String pingTime = "N/A";
-
+    // 在 Ping 操作结束后进行下载速度测试
+    double downloadSpeed = 0.0;
+    double uploadSpeed = 0.0;
     // 执行 Ping 操作
     await for (final event in ping.stream) {
       if (event.response != null && event.response!.time != null) {
+
         // 获取 Ping 的时间
         pingTime = event.response!.time!.inMilliseconds.toString();
 
+        await internetSpeedTest.startTesting(
+          useFastApi: true,  // 使用默认的 Fast API
+          downloadTestServer: 'http://$ip/testfile',  // 你的下载服务器URL
+          uploadTestServer: 'http://$ip/uploadfile',  // 你的上传服务器URL
+          onCompleted: (TestResult download, TestResult upload) {
+            downloadSpeed = download.transferRate;  // 获取下载速度
+            uploadSpeed = upload.transferRate;  // 获取上传速度
+          },
+          onError: (String errorMessage, String speedTestError) {
+            print("Error during speed test: $errorMessage");
+          },
+        );
         // 实时更新 Ping 结果
         setState(() {
           pingResults[ip] = "Ping: $pingTime ms";
@@ -177,23 +192,6 @@ class SpeedTestAppState extends State<SpeedTestApp> {
         print("Ping response is null for IP: $ip");
       }
     }
-
-    // 在 Ping 操作结束后进行下载速度测试
-    double downloadSpeed = 0.0;
-    double uploadSpeed = 0.0;
-
-    await internetSpeedTest.startTesting(
-      useFastApi: true,  // 使用默认的 Fast API
-      downloadTestServer: 'http://$ip/testfile',  // 你的下载服务器URL
-      uploadTestServer: 'http://$ip/uploadfile',  // 你的上传服务器URL
-      onCompleted: (TestResult download, TestResult upload) {
-        downloadSpeed = download.transferRate;  // 获取下载速度
-        uploadSpeed = upload.transferRate;  // 获取上传速度
-      },
-      onError: (String errorMessage, String speedTestError) {
-        print("Error during speed test: $errorMessage");
-      },
-    );
 
     // 更新下载速度和上传速度到 UI
     setState(() {
