@@ -217,7 +217,6 @@ class SpeedTestAppState extends State<SpeedTestApp> {
       if (event.response != null && event.response!.time != null) {
         pingTime = event.response!.time!.inMilliseconds.toString();
         print("start to test ip speed: $ip");
-
         // 测试下载速度
         try {
           downloadSpeed = await testSpeed(ip);
