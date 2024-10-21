@@ -125,7 +125,7 @@ class SpeedTestAppState extends State<SpeedTestApp> {
 
   Future<void> scanSubnet(String subnet) async {
     final ipAddresses = calculateIPRange(subnet);
-    const int maxConcurrent = 20; // 限制最大并发任务数
+    const int maxConcurrent = 10; // 限制最大并发任务数
     final List<FutureWithStatus> futures = []; // 用于存储包装了状态的异步任务
 
     for (var ip in ipAddresses) {
