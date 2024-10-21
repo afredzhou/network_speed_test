@@ -97,40 +97,51 @@ class SpeedTestAppState extends State<SpeedTestApp> {
 
   Future<void> scanNetworks() async {
     setState(() {
-      isScanning = true;
+      isScanning = true;  // Update UI to reflect scanning has started
       activeHosts.clear();
       pingResults.clear();
     });
+    print("isScanning:+$isScanning");
 
+    // Iterate through the networks and scan each subnet
     for (var subnet in networks) {
       await scanSubnet(subnet);
     }
 
     setState(() {
-      isScanning = false;
+      isScanning = false;  // Update UI to reflect scanning has completed
     });
   }
-
   Future<void> scanSubnet(String subnet) async {
     final ipAddresses = calculateIPRange(subnet);
+    const batchSize = 20; // 调整批处理大小
     final futures = <Future>[];
 
     for (var ip in ipAddresses) {
+      if (futures.length >= batchSize) {
+        await Future.wait(futures); // 等待批处理完成
+        futures.clear();
+        await Future.delayed(Duration(milliseconds: 100)); // 防止系统过载
+      }
       futures.add(scanAndPing(ip));
     }
 
+    // 处理剩余的 IP
     await Future.wait(futures);
   }
 
+
+
   Future<void> scanAndPing(String ip) async {
     try {
-      final stream = NetworkAnalyzer.i.discover2(ip, 80, timeout: Duration(seconds: 2));
+      final stream = NetworkAnalyzer.i.discover2(ip, 80, timeout: const Duration(seconds: 2));
       await for (final host in stream) {
         if (host.exists) {
           setState(() {
             activeHosts.add(host.ip);
           });
           await pingHost(host.ip);
+          print("host.ip: ${host.ip}  host.exists: ${host.exists}");
         }
       }
     } catch (e) {
