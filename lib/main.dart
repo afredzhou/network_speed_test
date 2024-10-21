@@ -13,6 +13,16 @@ class SpeedTestApp extends StatefulWidget {
   @override
   SpeedTestAppState createState() => SpeedTestAppState();
 }
+class FutureWithStatus {
+  Future<void> future;
+  bool isCompleted = false;
+
+  FutureWithStatus(this.future) {
+    future.then((_) {
+      isCompleted = true; // 在 Future 完成时，标记为 true
+    });
+  }
+}
 
 class SpeedTestAppState extends State<SpeedTestApp> {
   List<String> activeHosts = [];
@@ -111,36 +121,42 @@ class SpeedTestAppState extends State<SpeedTestApp> {
       isScanning = false;  // Update UI to reflect scanning has completed
     });
   }
+
   Future<void> scanSubnet(String subnet) async {
     final ipAddresses = calculateIPRange(subnet);
-    final futures = <Future>[]; // 用于存储所有 scanAndPing 的 Future
+    const int maxConcurrent = 20; // 限制最大并发任务数
+    final List<FutureWithStatus> futures = []; // 用于存储包装了状态的异步任务
 
     for (var ip in ipAddresses) {
-      print("Processing IP: $ip");
+       print("Processing IP: $ip");
 
-      // 立即对每个 IP 执行 scanAndPing
-      futures.add(scanAndPing(ip));  // 将 scanAndPing 添加到任务队列中
-
-      // 如果任务队列过长，进行并发控制
-      if (futures.length >= 50) {  // 假设最多允许 50 个任务并发
-        await Future.any(futures); // 等待至少一个任务完成
-        futures.removeWhere((future) => future == Future.any(futures)); // 移除已完成的任务
+      // 追执行 scanAndPing 任务，跟踪其状态
+       futures.add(scanAndPing(ip) as FutureWithStatus);
+      // 当并发任务数达到 maxConcurrent 时，等待其中一个任务完成
+      if (futures.length >= maxConcurrent) {
+        await Future.any(futures.map((f) => f.future)); // 等待其中一个任务完成
+        futures.removeWhere((f) => f.isCompleted); // 移除已完成的任务
       }
     }
 
-    // 等待剩余的 IP 任务完成
-    await Future.wait(futures);
+    // 等待剩余的 IP 地址任务完成
+    await Future.wait(futures.map((f) => f.future));
   }
+
+
+
+
   Future<void> scanAndPing(String ip) async {
     try {
       final stream = NetworkAnalyzer.i.discover2(ip, 80, timeout: const Duration(seconds: 2));
       await for (final host in stream) {
         if (host.exists) {
+          print("host.ip: ${host.ip}  host.exists: ${host.exists}");
+
           setState(() {
             activeHosts.add(host.ip);
           });
           await pingHost(host.ip);
-          print("host.ip: ${host.ip}  host.exists: ${host.exists}");
         }
       }
     } catch (e) {
