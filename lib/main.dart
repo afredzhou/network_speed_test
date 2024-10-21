@@ -102,7 +102,6 @@ class SpeedTestAppState extends State<SpeedTestApp> {
       pingResults.clear();
     });
     print("isScanning:+$isScanning");
-
     // Iterate through the networks and scan each subnet
     for (var subnet in networks) {
       await scanSubnet(subnet);
@@ -119,6 +118,7 @@ class SpeedTestAppState extends State<SpeedTestApp> {
 
     for (var ip in ipAddresses) {
       if (futures.length >= batchSize) {
+        print("ip in ipAddressesp: ${ip}" );
         await Future.wait(futures); // 等待批处理完成
         futures.clear();
         await Future.delayed(Duration(milliseconds: 100)); // 防止系统过载
