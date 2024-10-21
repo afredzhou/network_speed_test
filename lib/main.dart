@@ -165,7 +165,7 @@ class SpeedTestAppState extends State<SpeedTestApp> {
 
     // 执行 Ping 操作
     await for (final event in ping.stream) {
-      if (event.response != null) {
+      if (event.response != null && event.response!.time != null) {
         // 获取 Ping 的时间
         pingTime = event.response!.time!.inMilliseconds.toString();
 
@@ -173,6 +173,8 @@ class SpeedTestAppState extends State<SpeedTestApp> {
         setState(() {
           pingResults[ip] = "Ping: $pingTime ms";
         });
+      } else {
+        print("Ping response is null for IP: $ip");
       }
     }
 
@@ -198,6 +200,7 @@ class SpeedTestAppState extends State<SpeedTestApp> {
       pingResults[ip] = "Ping: $pingTime ms, Download: ${downloadSpeed.toStringAsFixed(2)} Mbps, Upload: ${uploadSpeed.toStringAsFixed(2)} Mbps";
     });
   }
+
 
 
 
