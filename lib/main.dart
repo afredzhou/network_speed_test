@@ -117,18 +117,22 @@ class SpeedTestAppState extends State<SpeedTestApp> {
     final futures = <Future>[];
 
     for (var ip in ipAddresses) {
+      futures.add(scanAndPing(ip)); // 将 scanAndPing 添加到任务列表
+
       if (futures.length >= batchSize) {
-        print("ip in ipAddressesp: ${ip}" );
-        await Future.wait(futures); // 等待批处理完成
-        futures.clear();
-        await Future.delayed(Duration(milliseconds: 100)); // 防止系统过载
+        print("Processing batch of IPs, last IP: $ip");
+        await Future.wait(futures); // 等待当前批处理的所有任务完成
+        futures.clear(); // 清空任务列表以开始新的批处理
+        await Future.delayed(Duration(milliseconds: 100)); // 延时，防止系统过载
       }
-      futures.add(scanAndPing(ip));
     }
 
-    // 处理剩余的 IP
-    await Future.wait(futures);
+    // 处理剩余的 IP，如果批处理未完全
+    if (futures.isNotEmpty) {
+      await Future.wait(futures); // 等待剩余任务完成
+    }
   }
+
 
 
 
