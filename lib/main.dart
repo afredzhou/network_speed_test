@@ -170,9 +170,9 @@ class SpeedTestAppState extends State<SpeedTestApp> {
         pingTime = event.response!.time!.inMilliseconds.toString();
 
         await internetSpeedTest.startTesting(
-          useFastApi: true,  // 使用默认的 Fast API
-          downloadTestServer: 'http://$ip/testfile',  // 你的下载服务器URL
-          uploadTestServer: 'http://$ip/uploadfile',  // 你的上传服务器URL
+          useFastApi: false,  // 使用默认的 Fast API
+          downloadTestServer: 'http://$ip/10MB.zip',  // 你的下载服务器URL
+          uploadTestServer: 'http://$ip/10MB.zip',  // 你的上传服务器URL
           onCompleted: (TestResult download, TestResult upload) {
             downloadSpeed = download.transferRate;  // 获取下载速度
             uploadSpeed = upload.transferRate;  // 获取上传速度
