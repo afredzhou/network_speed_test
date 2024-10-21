@@ -134,7 +134,9 @@ class SpeedTestAppState extends State<SpeedTestApp> {
        var futureWithStatus = FutureWithStatus(scanAndPing(ip));
        futures.add(futureWithStatus);
        // 当并发任务数达到 maxConcurrent 时，等待其中一个任务完成
-      if (futures.length >= maxConcurrent) {
+       await Future.delayed(Duration(milliseconds: 100));
+
+       if (futures.length >= maxConcurrent) {
         await Future.any(futures.map((f) => f.future)); // 等待其中一个任务完成
         futures.removeWhere((f) => f.isCompleted); // 移除已完成的任务
       }
