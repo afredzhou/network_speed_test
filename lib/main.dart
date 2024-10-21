@@ -30,8 +30,8 @@ class SpeedTestAppState extends State<SpeedTestApp> {
   Map<String, String> pingResults = {};
   bool isScanning = false;
   final List<String> networks = [
-    "173.245.48.0/20",
-    // "103.21.244.0/22",
+    // "173.245.48.0/20",
+    "103.21.244.0/22",
     // "103.22.200.0/22",
     // "103.31.4.0/22",
     // "141.101.64.0/18",
@@ -143,9 +143,6 @@ class SpeedTestAppState extends State<SpeedTestApp> {
     // 等待剩余的 IP 地址任务完成
     await Future.wait(futures.map((f) => f.future));
   }
-
-
-
 
   Future<void> scanAndPing(String ip) async {
     try {
