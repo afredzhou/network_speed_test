@@ -1,10 +1,8 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:dart_ping/dart_ping.dart';
-import 'package:http/http.dart' as http;
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:dart_ping/dart_ping.dart';
 
 void main() {
   runApp(const SpeedTestApp());
@@ -23,17 +21,27 @@ Future<double> testSpeed(String ip, {int port = 80, int packetSize = 1024, int p
 
   final endTime = DateTime.now();
   final totalTime = endTime.difference(startTime).inMilliseconds / 1000; // 将时间转换为秒
+
+  // 添加对总时间为零的检查
+  if (totalTime == 0) {
+    socket.close();
+    return double.infinity; // 或者返回一个特定的错误值
+  }
+
   final speed = totalSent / totalTime; // 计算网速（字节/秒）
   final speedMB = speed / (1024 * 1024); // 转换为 MB/s
 
   socket.close();
   return speedMB;
-}class SpeedTestApp extends StatefulWidget {
-  const SpeedTestApp({super.key});
+}
+
+class SpeedTestApp extends StatefulWidget {
+  const SpeedTestApp({Key? key}) : super(key: key);
 
   @override
   SpeedTestAppState createState() => SpeedTestAppState();
 }
+
 class FutureWithStatus {
   Future<void> future;
   bool isCompleted = false;
@@ -49,23 +57,34 @@ class SpeedTestAppState extends State<SpeedTestApp> {
   List<String> activeHosts = [];
   Map<String, String> pingResults = {};
   bool isScanning = false;
+
   final List<String> networks = [
-    // "173.245.48.0/20",
+    "173.245.48.0/20",
     "103.21.244.0/22",
-    // "103.22.200.0/22",
-    // "103.31.4.0/22",
-    // "141.101.64.0/18",
-    // "108.162.192.0/18",
-    // "190.93.240.0/20",
-    // "188.114.96.0/20",
-    // "197.234.240.0/22",
-    // "198.41.128.0/17",
-    // "162.158.0.0/15",
-    // "104.16.0.0/13",
-    // "104.24.0.0/14",
-    // "172.64.0.0/13",
-    // "131.0.72.0/22"
+    "103.22.200.0/22",
+    "103.31.4.0/22",
+    "141.101.64.0/18",
+    "108.162.192.0/18",
+    "190.93.240.0/20",
+    "188.114.96.0/20",
+    "197.234.240.0/22",
+    "198.41.128.0/17",
+    "162.158.0.0/15",
+    "104.16.0.0/13",
+    "104.24.0.0/14",
+    "172.64.0.0/13",
+    "131.0.72.0/22"
   ];
+
+  Map<String, bool> selectedNetworks = {};
+
+  @override
+  void initState() {
+    super.initState();
+    for (var network in networks) {
+      selectedNetworks[network] = false;
+    }
+  }
 
   Iterable<String> calculateIPRange(String subnet) sync* {
     RegExp regExp = RegExp(r'(\d+)\.(\d+)\.(\d+)\.(\d+)/(\d+)');
@@ -107,16 +126,29 @@ class SpeedTestAppState extends State<SpeedTestApp> {
               ),
               const SizedBox(height: 20),
               Expanded(
-                child: ListView.builder(
-                  itemCount: activeHosts.length,
-                  itemBuilder: (context, index) {
-                    String host = activeHosts[index];
-                    String ping = pingResults[host] ?? 'N/A';
-                    return ListTile(
-                      title: Text("Host: $host"),
-                      subtitle: Text("Ping: $ping ms"),
-                    );
-                  },
+                child: ListView(
+                  children: [
+                    ...selectedNetworks.keys.map((network) {
+                      return CheckboxListTile(
+                        title: Text(network),
+                        value: selectedNetworks[network],
+                        onChanged: (bool? value) {
+                          setState(() {
+                            selectedNetworks[network] = value!;
+                          });
+                        },
+                      );
+                    }).toList(),
+                    const Divider(),
+                    const Text("Active Hosts:"),
+                    ...activeHosts.map((host) {
+                      String ping = pingResults[host] ?? 'N/A';
+                      return ListTile(
+                        title: Text("Host: $host"),
+                        subtitle: Text(ping),
+                      );
+                    }).toList(),
+                  ],
                 ),
               ),
             ],
@@ -132,10 +164,12 @@ class SpeedTestAppState extends State<SpeedTestApp> {
       activeHosts.clear();
       pingResults.clear();
     });
-    print("isScanning:+$isScanning");
-    // Iterate through the networks and scan each subnet
-    for (var subnet in networks) {
-      await scanSubnet(subnet);
+
+    // Iterate through the selected networks and scan each subnet
+    for (var subnet in selectedNetworks.keys) {
+      if (selectedNetworks[subnet]!) {
+        await scanSubnet(subnet);
+      }
     }
 
     setState(() {
@@ -149,12 +183,12 @@ class SpeedTestAppState extends State<SpeedTestApp> {
     final List<FutureWithStatus> futures = []; // 用于存储包装了状态的异步任务
 
     for (var ip in ipAddresses) {
-       print("Processing IP: $ip");
-       var futureWithStatus = FutureWithStatus(scanAndPing(ip));
-       futures.add(futureWithStatus);
-       // 当并发任务数达到 maxConcurrent 时，等待其中一个任务完成
-       await Future.delayed(Duration(milliseconds: 1000));
-       if (futures.length >= maxConcurrent) {
+      print("Processing IP: $ip");
+      var futureWithStatus = FutureWithStatus(scanAndPing(ip));
+      futures.add(futureWithStatus);
+
+      // 当并发任务数达到 maxConcurrent 时，等待其中一个任务完成
+      if (futures.length >= maxConcurrent) {
         await Future.any(futures.map((f) => f.future)); // 等待其中一个任务完成
         futures.removeWhere((f) => f.isCompleted); // 移除已完成的任务
       }
@@ -165,28 +199,24 @@ class SpeedTestAppState extends State<SpeedTestApp> {
 
   Future<void> scanAndPing(String ip) async {
     try {
-          print("host.ip: ${ip}"  );
-          setState(() {
-            activeHosts.add(ip);
-          });
-          await pingHost(ip);
+      setState(() {
+        activeHosts.add(ip);
+      });
+      await pingHost(ip);
     } catch (e) {
       print('Error scanning $ip: $e');
     }
   }
+
   Future<void> pingHost(String ip) async {
     final ping = Ping(ip, count: 3);  // Ping 三次
     String pingTime = "N/A";
-    // 在 Ping 操作结束后进行下载速度测试
     double downloadSpeed = 0.0;
-    double uploadSpeed = 0.0;
-    // 执行 Ping 操作
+
     await for (final event in ping.stream) {
       if (event.response != null && event.response!.time != null) {
-        // 获取 Ping 的时间
         pingTime = event.response!.time!.inMilliseconds.toString();
-        print("start to test ip speed: ${ip}"  );
-        final speed = await testSpeed(ip);
+        print("start to test ip speed: $ip");
 
         // 测试下载速度
         try {
@@ -198,8 +228,9 @@ class SpeedTestAppState extends State<SpeedTestApp> {
         print("Ping response is null for IP: $ip");
       }
     }
-    // 更新下载速度和上传速度到 UI
+
     setState(() {
-      pingResults[ip] = "Ping: $pingTime ms, Download: ${downloadSpeed.toStringAsFixed(2)} MB/s";
+      pingResults[ip] = "Ping: $pingTime ms, Download: ${downloadSpeed == double.infinity ? 'Error' : downloadSpeed.toStringAsFixed(2)} MB/s";
     });
-  }}
+  }
+}
