@@ -113,25 +113,26 @@ class SpeedTestAppState extends State<SpeedTestApp> {
   }
   Future<void> scanSubnet(String subnet) async {
     final ipAddresses = calculateIPRange(subnet);
-    const batchSize = 20; // 调整批处理大小
-    final futures = <Future>[];
+    final futures = <Future>[]; // 用来跟踪所有 scanAndPing 的 Future
 
     for (var ip in ipAddresses) {
-      futures.add(scanAndPing(ip)); // 将 scanAndPing 添加到任务列表
+      print("Processing IP: $ip");
 
-      if (futures.length >= batchSize) {
-        print("Processing batch of IPs, last IP: $ip");
-        await Future.wait(futures); // 等待当前批处理的所有任务完成
-        futures.clear(); // 清空任务列表以开始新的批处理
-        await Future.delayed(Duration(milliseconds: 100)); // 延时，防止系统过载
+      // 立即对每个 IP 执行 scanAndPing
+      futures.add(scanAndPing(ip));  // 将 scanAndPing 添加到任务队列中
+
+      // 如果任务队列过长，进行并发控制
+      if (futures.length >= 20) {  // 假设最多允许 50 个任务并发
+        await Future.any(futures); // 等待至少一个任务完成
+        futures.removeWhere((future) => future.isCompleted); // 移除已完成的任务
       }
     }
 
-    // 处理剩余的 IP，如果批处理未完全
-    if (futures.isNotEmpty) {
-      await Future.wait(futures); // 等待剩余任务完成
-    }
+    // 等待剩余的 IP 任务完成
+    await Future.wait(futures);
   }
+
+
 
 
 
