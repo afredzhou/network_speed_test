@@ -212,19 +212,25 @@ class SpeedTestAppState extends State<SpeedTestApp> {
     final ping = Ping(ip, count: 3);  // Ping 三次
     String pingTime = "N/A";
     double downloadSpeed = 0.0;
+    bool pingSuccess = false;
 
     await for (final event in ping.stream) {
       if (event.response != null && event.response!.time != null) {
         pingTime = event.response!.time!.inMilliseconds.toString();
-        print("start to test ip speed: $ip");
-        // 测试下载速度
-        try {
-          downloadSpeed = await testSpeed(ip);
-        } catch (e) {
-          print('Error: $e');
-        }
+        pingSuccess = true;
       } else {
         print("Ping response is null for IP: $ip");
+      }
+    }
+
+    if (pingSuccess) {
+      print("start to test ip speed: $ip");
+      // 测试下载速度
+      try {
+        downloadSpeed = await testSpeed(ip);
+      } catch (e) {
+        print('Error: $e');
+        downloadSpeed = double.infinity;  // 标记为错误
       }
     }
 
@@ -232,4 +238,5 @@ class SpeedTestAppState extends State<SpeedTestApp> {
       pingResults[ip] = "Ping: $pingTime ms, Download: ${downloadSpeed == double.infinity ? 'Error' : downloadSpeed.toStringAsFixed(2)} MB/s";
     });
   }
+
 }
