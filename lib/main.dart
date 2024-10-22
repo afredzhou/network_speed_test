@@ -57,6 +57,7 @@ class SpeedTestAppState extends State<SpeedTestApp> {
   List<String> activeHosts = [];
   Map<String, String> pingResults = {};
   bool isScanning = false;
+  final TextEditingController networkController = TextEditingController();
 
   final List<String> networks = [
     "173.245.48.0/20",
@@ -120,6 +121,24 @@ class SpeedTestAppState extends State<SpeedTestApp> {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
+              TextField(
+                controller: networkController,
+                decoration: InputDecoration(
+                  labelText: 'Enter Network (e.g., 192.168.1.0/24)',
+                  suffixIcon: IconButton(
+                    icon: Icon(Icons.add),
+                    onPressed: () {
+                      setState(() {
+                        final newNetwork = networkController.text;
+                        if (newNetwork.isNotEmpty && !selectedNetworks.containsKey(newNetwork)) {
+                          selectedNetworks[newNetwork] = false;
+                        }
+                      });
+                      networkController.clear();
+                    },
+                  ),
+                ),
+              ),
               ElevatedButton(
                 onPressed: isScanning ? null : scanNetworks,
                 child: Text(isScanning ? 'Scanning...' : 'Start Scan'),
@@ -238,5 +257,4 @@ class SpeedTestAppState extends State<SpeedTestApp> {
       pingResults[ip] = "Ping: $pingTime ms, Download: ${downloadSpeed == double.infinity ? 'Error' : downloadSpeed.toStringAsFixed(2)} MB/s";
     });
   }
-
 }
