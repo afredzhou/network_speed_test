@@ -128,7 +128,7 @@ class SpeedTestAppState extends State<SpeedTestApp> {
                 decoration: InputDecoration(
                   labelText: 'Enter Network (e.g., 192.168.1.0/24)',
                   suffixIcon: IconButton(
-                    icon: Icon(Icons.add),
+                    icon: const Icon(Icons.add),
                     onPressed: () {
                       setState(() {
                         final newNetwork = networkController.text;
@@ -168,20 +168,14 @@ class SpeedTestAppState extends State<SpeedTestApp> {
                         title: Text("Host: $host"),
                         subtitle: Text(ping),
                         trailing: IconButton(
-                          icon: Icon(Icons.copy),
+                          icon: const Icon(Icons.copy),
                           onPressed: () {
-                            Clipboard.setData(ClipboardData(text: "Host: $host\n$ping"));
+                            Clipboard.setData(ClipboardData(text: host));
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Copied $host to clipboard')),
                             );
                           },
                         ),
-                        onLongPress: () {
-                          Clipboard.setData(ClipboardData(text: "Host: $host\n$ping"));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Copied $host to clipboard')),
-                          );
-                        },
                       );
                     }).toList(),
                   ],
