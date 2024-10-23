@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Import the services package for clipboard
 import 'package:dart_ping/dart_ping.dart';
 
 void main() {
@@ -166,6 +167,21 @@ class SpeedTestAppState extends State<SpeedTestApp> {
                       return ListTile(
                         title: Text("Host: $host"),
                         subtitle: Text(ping),
+                        trailing: IconButton(
+                          icon: Icon(Icons.copy),
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: "Host: $host\n$ping"));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Copied $host to clipboard')),
+                            );
+                          },
+                        ),
+                        onLongPress: () {
+                          Clipboard.setData(ClipboardData(text: "Host: $host\n$ping"));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Copied $host to clipboard')),
+                          );
+                        },
                       );
                     }).toList(),
                   ],
