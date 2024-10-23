@@ -58,6 +58,7 @@ class SpeedTestAppState extends State<SpeedTestApp> {
   Map<String, String> pingResults = {};
   bool isScanning = false;
   final TextEditingController networkController = TextEditingController();
+  Completer<void>? scanCompleter;
 
   final List<String> networks = [
     "173.245.48.0/20",
@@ -140,8 +141,8 @@ class SpeedTestAppState extends State<SpeedTestApp> {
                 ),
               ),
               ElevatedButton(
-                onPressed: isScanning ? null : scanNetworks,
-                child: Text(isScanning ? 'Scanning...' : 'Start Scan'),
+                onPressed: isScanning ? stopScan : scanNetworks,
+                child: Text(isScanning ? 'Stop Scan' : 'Start Scan'),
               ),
               const SizedBox(height: 20),
               Expanded(
@@ -182,18 +183,22 @@ class SpeedTestAppState extends State<SpeedTestApp> {
       isScanning = true;  // Update UI to reflect scanning has started
       activeHosts.clear();
       pingResults.clear();
+      scanCompleter = Completer<void>();
     });
 
-    // Iterate through the selected networks and scan each subnet
-    for (var subnet in selectedNetworks.keys) {
-      if (selectedNetworks[subnet]!) {
-        await scanSubnet(subnet);
+    try {
+      // Iterate through the selected networks and scan each subnet
+      for (var subnet in selectedNetworks.keys) {
+        if (selectedNetworks[subnet]!) {
+          await scanSubnet(subnet);
+        }
       }
+    } finally {
+      setState(() {
+        isScanning = false;  // Update UI to reflect scanning has completed
+        scanCompleter = null;
+      });
     }
-
-    setState(() {
-      isScanning = false;  // Update UI to reflect scanning has completed
-    });
   }
 
   Future<void> scanSubnet(String subnet) async {
@@ -202,6 +207,7 @@ class SpeedTestAppState extends State<SpeedTestApp> {
     final List<FutureWithStatus> futures = []; // 用于存储包装了状态的异步任务
 
     for (var ip in ipAddresses) {
+      if (scanCompleter?.isCompleted ?? true) break; // 检查是否应停止扫描
       print("Processing IP: $ip");
       var futureWithStatus = FutureWithStatus(scanAndPing(ip));
       futures.add(futureWithStatus);
@@ -234,6 +240,7 @@ class SpeedTestAppState extends State<SpeedTestApp> {
     bool pingSuccess = false;
 
     await for (final event in ping.stream) {
+      if (scanCompleter?.isCompleted ?? true) break; // 检查是否应停止扫描
       if (event.response != null && event.response!.time != null) {
         pingTime = event.response!.time!.inMilliseconds.toString();
         pingSuccess = true;
@@ -255,6 +262,12 @@ class SpeedTestAppState extends State<SpeedTestApp> {
 
     setState(() {
       pingResults[ip] = "Ping: $pingTime ms, Download: ${downloadSpeed == double.infinity ? 'Error' : downloadSpeed.toStringAsFixed(2)} MB/s";
+    });
+  }
+
+  void stopScan() {
+    setState(() {
+      scanCompleter?.complete(); // Complete the completer to stop ongoing tasks
     });
   }
 }
